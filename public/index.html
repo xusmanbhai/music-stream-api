@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🎵 Music Stream API — Test Console</title>
+  <meta name="description" content="Interactive test console for the Music Stream API powered by YouTube via play-dl." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a12;
+      --surface: #12121f;
+      --card: #1a1a2e;
+      --border: #2a2a44;
+      --accent: #7c3aed;
+      --accent2: #06b6d4;
+      --accent3: #f59e0b;
+      --text: #e2e2f0;
+      --muted: #6b6b8a;
+      --success: #10b981;
+      --danger: #ef4444;
+      --radius: 16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 10%, rgba(124,58,237,.18) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 80% 80%, rgba(6,182,212,.12) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 0 20px; position: relative; z-index: 1; }
+
+    /* ── Header ── */
+    header {
+      padding: 60px 0 40px;
+      text-align: center;
+    }
+    .logo { font-size: 48px; margin-bottom: 12px; animation: pulse 3s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.08);} }
+
+    header h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(28px, 5vw, 48px);
+      font-weight: 800;
+      background: linear-gradient(135deg, #a78bfa, #38bdf8, #f59e0b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.1;
+      margin-bottom: 12px;
+    }
+    header p { color: var(--muted); font-size: 16px; }
+
+    /* ── Status Badge ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px 0 40px;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 12px var(--success);
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+    .status-text { font-size: 13px; color: var(--muted); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 24px;
+      transition: border-color .3s, transform .2s;
+    }
+    .card:hover { border-color: rgba(124,58,237,.5); }
+
+    .card-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: .5px;
+    }
+    .tag-get  { background: rgba(16,185,129,.15); color: #10b981; border: 1px solid rgba(16,185,129,.3); }
+    .tag-post { background: rgba(245,158,11,.15);  color: #f59e0b;  border: 1px solid rgba(245,158,11,.3); }
+
+    /* ── Inputs ── */
+    .input-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    input[type="text"] {
+      flex: 1;
+      min-width: 200px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124,58,237,.2);
+    }
+
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #7c3aed, #6366f1);
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(124,58,237,.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(124,58,237,.5); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: .5; cursor: default; transform: none; }
+
+    /* ── Results ── */
+    .results { margin-top: 20px; }
+    .results-label { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 12px; letter-spacing: .5px; text-transform: uppercase; }
+
+    /* Track card */
+    .track {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .track::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(124,58,237,.08), rgba(6,182,212,.05));
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .track:hover::before { opacity: 1; }
+    .track:hover { border-color: rgba(124,58,237,.4); transform: translateX(4px); }
+
+    .track-thumb {
+      width: 64px; height: 48px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--border);
+    }
+    .track-info { flex: 1; min-width: 0; }
+    .track-title {
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+    .track-meta { font-size: 12px; color: var(--muted); }
+    .track-dur {
+      font-size: 13px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+    .play-btn-icon {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #7c3aed, #6366f1);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .track:hover .play-btn-icon { transform: scale(1.1); box-shadow: 0 4px 14px rgba(124,58,237,.5); }
+
+    /* ── Player ── */
+    .player-section {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(124,58,237,.3);
+      background: linear-gradient(135deg, rgba(124,58,237,.08), rgba(6,182,212,.05));
+      display: none;
+    }
+    .player-section.active { display: block; animation: fadeIn .3s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+
+    .now-playing {
+      font-size: 13px;
+      color: var(--accent2);
+      font-weight: 600;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .now-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    audio {
+      width: 100%;
+      border-radius: 8px;
+      accent-color: var(--accent);
+    }
+
+    /* ── JSON box ── */
+    .json-box {
+      margin-top: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: #a78bfa;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* ── Endpoints Reference ── */
+    .endpoint-list { list-style: none; }
+    .endpoint-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .endpoint-list li:last-child { border-bottom: none; }
+    .ep-method {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .ep-get  { background: rgba(16,185,129,.15); color: #10b981; }
+    .ep-post { background: rgba(245,158,11,.15);  color: #f59e0b; }
+    .ep-path { color: #a78bfa; font-family: monospace; font-size: 13px; }
+    .ep-desc { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error box ── */
+    .error-box {
+      padding: 14px;
+      border-radius: 10px;
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.3);
+      color: #fca5a5;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 40px 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    footer a { color: var(--accent2); text-decoration: none; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    @media (max-width: 600px) {
+      .input-row { flex-direction: column; }
+      button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">🎵</div>
+    <h1>Music Stream API</h1>
+    <p>YouTube audio streaming powered by <strong>play-dl</strong> + Express</p>
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-text" id="statusText">Checking server…</span>
+    </div>
+  </header>
+
+  <!-- Search Endpoint -->
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-get">GET</span>
+      Search Songs &mdash; <code style="font-size:14px;color:#a78bfa">/search?song=&lt;name&gt;</code>
+    </div>
+    <div class="input-row">
+      <input type="text" id="searchInput" placeholder="e.g. Blinding Lights, Bohemian Rhapsody…" />
+      <button class="btn-primary" id="searchBtn" onclick="searchSong()">🔍 Search</button>
+    </div>
+    <div class="results" id="searchResults"></div>
+  </div>
+
+  <!-- Stream Player -->
+  <div class="card">
+    <div class="card-title">
+      <span class="tag tag-get">GET</span>
+      Stream Audio &mdash; <code style="font-size:14px;color:#a78bfa">/play?url=&lt;youtube_url&gt;</code>
+    </div>
+    <div class="input-row">
+      <input type="text" id="playInput" placeholder="https://www.youtube.com/watch?v=…" />
+      <button class="btn-primary" id="playBtn" onclick="streamAudio()">▶ Stream</button>
+    </div>
+
+    <div class="player-section" id="playerSection">
+      <div class="now-playing">🎶 Now Streaming</div>
+      <div class="now-title" id="nowTitle">Loading…</div>
+      <audio id="audioPlayer" controls autoplay></audio>
+    </div>
+  </div>
+
+  <!-- API Reference -->
+  <div class="card">
+    <div class="card-title">📡 API Endpoints Reference</div>
+    <ul class="endpoint-list">
+      <li>
+        <span class="ep-method ep-get">GET</span>
+        <div>
+          <div class="ep-path">/search?song=&lt;name&gt;</div>
+          <div class="ep-desc">Search YouTube — returns top 5 tracks as JSON<br><em>{ id, title, duration, thumbnail, url, channel, views }</em></div>
+        </div>
+      </li>
+      <li>
+        <span class="ep-method ep-post">POST</span>
+        <div>
+          <div class="ep-path">/search</div>
+          <div class="ep-desc">Same as GET /search — body: <code style="color:#a78bfa">{ "song": "name" }</code><br>Handy for mobile apps using fetch/axios POST.</div>
+        </div>
+      </li>
+      <li>
+        <span class="ep-method ep-get">GET</span>
+        <div>
+          <div class="ep-path">/play?url=&lt;youtube_url&gt;</div>
+          <div class="ep-desc">Streams audio directly — pipe into <code style="color:#a78bfa">&lt;audio&gt;</code> src or mobile player.<br>Content-Type: <em>audio/webm; codecs=opus</em></div>
+        </div>
+      </li>
+      <li>
+        <span class="ep-method ep-get">GET</span>
+        <div>
+          <div class="ep-path">/info?url=&lt;youtube_url&gt;</div>
+          <div class="ep-desc">Full metadata for one video: title, description, views, likes, channel, etc.</div>
+        </div>
+      </li>
+      <li>
+        <span class="ep-method ep-get">GET</span>
+        <div>
+          <div class="ep-path">/health</div>
+          <div class="ep-desc">Server status + uptime check.</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Usage Examples -->
+  <div class="card">
+    <div class="card-title">⚡ Usage Examples</div>
+
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Copy-paste these into your React Native / Web app:</p>
+
+    <div style="margin-bottom:16px;">
+      <p style="font-size:12px;color:var(--accent2);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">JavaScript / React Native — Search</p>
+      <div class="json-box" style="color:#86efac;">const BASE = 'http://localhost:3000';
+
+// Search for a song
+const res = await fetch(`${BASE}/search?song=Blinding+Lights`);
+const data = await res.json();
+// data.results → array of { id, title, duration, thumbnail, url }
+
+// POST variant (for mobile apps)
+const res2 = await fetch(`${BASE}/search`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ song: 'Bohemian Rhapsody' })
+});
+const data2 = await res2.json();</div>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <p style="font-size:12px;color:var(--accent2);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">React Native — Audio Playback (expo-av)</p>
+      <div class="json-box" style="color:#86efac;">import { Audio } from 'expo-av';
+
+const BASE = 'http://YOUR_SERVER_IP:3000';
+
+async function playTrack(youtubeUrl) {
+  const { sound } = await Audio.Sound.createAsync(
+    { uri: `${BASE}/play?url=${encodeURIComponent(youtubeUrl)}` },
+    { shouldPlay: true }
+  );
+  return sound;
+}
+
+// Usage:
+const sound = await playTrack('https://www.youtube.com/watch?v=VIDEO_ID');</div>
+    </div>
+
+    <div>
+      <p style="font-size:12px;color:var(--accent2);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">HTML — Stream in &lt;audio&gt; tag</p>
+      <div class="json-box" style="color:#86efac;">&lt;audio controls src="http://localhost:3000/play?url=https://www.youtube.com/watch?v=VIDEO_ID"&gt;&lt;/audio&gt;</div>
+    </div>
+  </div>
+
+  <footer>
+    Built with ❤️ using <a href="https://github.com/play-dl/play-dl" target="_blank">play-dl</a> + Express &nbsp;|&nbsp;
+    Running on <code>localhost:3000</code>
+  </footer>
+</div>
+
+<script>
+  const BASE = window.location.origin;
+
+  // ── Health check ──────────────────────────────────────────────────────────
+  async function checkHealth() {
+    try {
+      const r = await fetch(`${BASE}/health`);
+      const d = await r.json();
+      if (d.status === 'ok') {
+        document.getElementById('statusDot').style.background = '#10b981';
+        document.getElementById('statusText').textContent = `Server online · uptime ${Math.floor(d.uptime)}s`;
+      }
+    } catch (e) {
+      document.getElementById('statusDot').style.background = '#ef4444';
+      document.getElementById('statusText').textContent = 'Server offline';
+    }
+  }
+  checkHealth();
+  setInterval(checkHealth, 10000);
+
+  // ── Search ────────────────────────────────────────────────────────────────
+  document.getElementById('searchInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchSong();
+  });
+
+  async function searchSong() {
+    const song = document.getElementById('searchInput').value.trim();
+    if (!song) return;
+
+    const btn = document.getElementById('searchBtn');
+    const resultsEl = document.getElementById('searchResults');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Searching…';
+    resultsEl.innerHTML = '';
+
+    try {
+      const r = await fetch(`${BASE}/search?song=${encodeURIComponent(song)}`);
+      const data = await r.json();
+
+      if (!data.success) throw new Error(data.error);
+
+      resultsEl.innerHTML = `<div class="results-label">Top ${data.results.length} results for "${data.query}"</div>`;
+
+      data.results.forEach((track) => {
+        const div = document.createElement('div');
+        div.className = 'track';
+        div.innerHTML = `
+          <img class="track-thumb" src="${track.thumbnail}" onerror="this.src='https://img.youtube.com/vi/${track.id}/hqdefault.jpg'" loading="lazy" />
+          <div class="track-info">
+            <div class="track-title">${escHtml(track.title)}</div>
+            <div class="track-meta">${escHtml(track.channel)} · ${Number(track.views||0).toLocaleString()} views</div>
+          </div>
+          <div class="track-dur">${track.duration}</div>
+          <div class="play-btn-icon">▶</div>
+        `;
+        div.addEventListener('click', () => playUrl(track.url, track.title));
+        resultsEl.appendChild(div);
+      });
+
+      // Also show raw JSON
+      const jsonDiv = document.createElement('div');
+      jsonDiv.className = 'json-box';
+      jsonDiv.textContent = JSON.stringify(data, null, 2);
+      resultsEl.appendChild(jsonDiv);
+
+    } catch (err) {
+      resultsEl.innerHTML = `<div class="error-box">❌ ${escHtml(err.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🔍 Search';
+    }
+  }
+
+  // ── Stream ────────────────────────────────────────────────────────────────
+  document.getElementById('playInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') streamAudio();
+  });
+
+  async function streamAudio() {
+    const url = document.getElementById('playInput').value.trim();
+    if (!url) return;
+    await playUrl(url, url);
+  }
+
+  async function playUrl(url, title) {
+    const player  = document.getElementById('audioPlayer');
+    const section = document.getElementById('playerSection');
+    const titleEl = document.getElementById('nowTitle');
+    const playBtn = document.getElementById('playBtn');
+
+    // Sync URL input
+    document.getElementById('playInput').value = url;
+
+    playBtn.disabled = true;
+    playBtn.innerHTML = '<span class="spinner"></span> Loading…';
+
+    // Build stream URL
+    const streamUrl = `${BASE}/play?url=${encodeURIComponent(url)}`;
+    player.src = streamUrl;
+    titleEl.textContent = title || url;
+    section.classList.add('active');
+
+    player.load();
+
+    player.oncanplay = () => {
+      playBtn.disabled = false;
+      playBtn.innerHTML = '▶ Stream';
+    };
+    player.onerror = () => {
+      playBtn.disabled = false;
+      playBtn.innerHTML = '▶ Stream';
+      section.classList.remove('active');
+      alert('❌ Failed to stream. Check the URL or server logs.');
+    };
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>
