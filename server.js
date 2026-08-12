@@ -6,66 +6,73 @@ const http = require("http");
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
-const { execFile } = require("child_process");
+const { exec, execFile } = require("child_process");
 const { promisify } = require("util");
-const execFileAsync = promisify(execFile);
+const execAsync = promisify(exec);           // shell=true  — respects full nix PATH
+const execFileAsync = promisify(execFile);   // no shell    — safe for args with URLs
 
 // ─── YouTube cookie file ───────────────────────────────────────────────────────
-// YouTube blocks yt-dlp on datacenter IPs (Railway, Render, etc.) unless you
-// pass cookies from a real logged-in browser session.
-// Set the YT_COOKIES env variable in Railway with the contents of a
-// cookies.txt file (Netscape format) exported from your browser.
+// YouTube blocks yt-dlp on datacenter IPs unless cookies from a real browser
+// session are provided. Set YT_COOKIES env var in Railway with the full text
+// of a cookies.txt file (Netscape format) exported while logged into YouTube.
 let COOKIE_FILE = null;
 if (process.env.YT_COOKIES) {
   COOKIE_FILE = path.join(os.tmpdir(), "yt-cookies.txt");
   fs.writeFileSync(COOKIE_FILE, process.env.YT_COOKIES, "utf8");
   console.log("[yt-dlp] Cookie file ready:", COOKIE_FILE);
 } else {
-  console.warn("[yt-dlp] WARNING: YT_COOKIES env var not set. YouTube may block requests on cloud IPs.");
+  console.warn("[yt-dlp] WARNING: YT_COOKIES not set — YouTube may block cloud IPs.");
 }
 
 // ─── yt-dlp binary resolver ───────────────────────────────────────────────────
-// On Railway/Linux: use system yt-dlp installed via nixpacks.
-// On local Windows dev: fall back to yt-dlp-exec's bundled binary.
+// Uses shell-based `which` so the nix store PATH (set by nixpacks) is searched.
+// execFile() alone misses nix paths because Node.js inherits a narrower PATH.
 let _ytDlpBin = null;
 async function getYtDlpBin() {
   if (_ytDlpBin) return _ytDlpBin;
-  // 1. Try system binary (Railway via nixpacks)
+
+  // 1. Shell-based lookup — finds nixpacks system yt-dlp on Railway/Linux
   try {
-    await execFileAsync("yt-dlp", ["--version"]);
-    _ytDlpBin = "yt-dlp";
-    console.log("[yt-dlp] Using system binary");
-    return _ytDlpBin;
+    const { stdout } = await execAsync("which yt-dlp");
+    const bin = stdout.trim().split("\n")[0].trim();
+    if (bin) {
+      const { stdout: ver } = await execAsync(`"${bin}" --version`);
+      _ytDlpBin = bin;
+      console.log(`[yt-dlp] Using system binary: ${bin} (${ver.trim()})`);
+      return _ytDlpBin;
+    }
   } catch (_) {}
-  // 2. Fall back to yt-dlp-exec bundled binary (local dev)
+
+  // 2. yt-dlp-exec bundled binary (local Windows dev fallback)
   try {
     const ytDlpExec = require("yt-dlp-exec");
     _ytDlpBin = ytDlpExec.path || require.resolve("yt-dlp-exec/bin/yt-dlp");
-    console.log("[yt-dlp] Using yt-dlp-exec bundled binary:", _ytDlpBin);
+    const { stdout: ver } = await execAsync(`"${_ytDlpBin}" --version`);
+    console.log(`[yt-dlp] Using yt-dlp-exec binary: ${_ytDlpBin} (${ver.trim()})`);
     return _ytDlpBin;
   } catch (_) {}
+
   throw new Error("yt-dlp binary not found. Install yt-dlp or yt-dlp-exec.");
 }
 
-// Unified yt-dlp caller
+// Unified yt-dlp caller — uses execFileAsync (no shell) for safety with URLs
 async function runYtDlp(url, options = {}) {
   const bin = await getYtDlpBin();
   const args = [url];
-  if (options.getUrl)          args.push("--get-url");
-  if (options.noWarnings)      args.push("--no-warnings");
-  if (options.format)          args.push("-f", options.format);
-  if (options.dumpSingleJson)  args.push("--dump-single-json");
+  if (options.getUrl)         args.push("--get-url");
+  if (options.noWarnings)     args.push("--no-warnings");
+  if (options.format)         args.push("-f", options.format);
+  if (options.dumpSingleJson) args.push("--dump-single-json");
 
-  // Use android player client — bypasses many bot-detection checks
-  args.push("--extractor-args", "youtube:player_client=android,web");
-
-  // Pass cookies if available (required on Railway/cloud datacenter IPs)
+  // Cookies bypass YouTube bot-detection on cloud IPs.
+  // No player_client override — default web client has the most format options.
   if (COOKIE_FILE) args.push("--cookies", COOKIE_FILE);
 
   const { stdout } = await execFileAsync(bin, args, { maxBuffer: 20 * 1024 * 1024 });
   if (options.dumpSingleJson) return JSON.parse(stdout);
   return stdout.trim();
 }
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
