@@ -201,13 +201,11 @@ app.get("/play", async (req, res) => {
 
       // --get-url is much faster than --dump-single-json:
       // it only extracts and prints the stream URL, no full metadata fetch.
+      // Format: try m4a first (android client), then webm, then any audio.
       const rawUrl = await runYtDlp(url, {
         getUrl: true,
         noWarnings: true,
-        noCallHome: true,
-        preferFreeFormats: true,
-        youtubeSkipDashManifest: true,
-        format: "bestaudio[ext=webm]/bestaudio/best",
+        format: "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best",
       });
 
       // yt-dlp --get-url can return multiple lines; take the first non-empty one
