@@ -346,7 +346,7 @@
   <header>
     <div class="logo">🎵</div>
     <h1>Music Stream API</h1>
-    <p>YouTube audio streaming powered by <strong>play-dl</strong> + Express</p>
+    <p>YouTube audio streaming powered by <strong>yt-dlp</strong> + Express</p>
     <div class="status-bar">
       <div class="status-dot" id="statusDot"></div>
       <span class="status-text" id="statusText">Checking server…</span>
@@ -434,7 +434,7 @@
 
     <div style="margin-bottom:16px;">
       <p style="font-size:12px;color:var(--accent2);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">JavaScript / React Native — Search</p>
-      <div class="json-box" style="color:#86efac;">const BASE = 'http://localhost:3000';
+      <div class="json-box" style="color:#86efac;">const BASE = 'https://music-stream-api-production.up.railway.app';
 
 // Search for a song
 const res = await fetch(`${BASE}/search?song=Blinding+Lights`);
@@ -454,7 +454,7 @@ const data2 = await res2.json();</div>
       <p style="font-size:12px;color:var(--accent2);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">React Native — Audio Playback (expo-av)</p>
       <div class="json-box" style="color:#86efac;">import { Audio } from 'expo-av';
 
-const BASE = 'http://YOUR_SERVER_IP:3000';
+const BASE = 'https://music-stream-api-production.up.railway.app';
 
 async function playTrack(youtubeUrl) {
   const { sound } = await Audio.Sound.createAsync(
@@ -475,8 +475,9 @@ const sound = await playTrack('https://www.youtube.com/watch?v=VIDEO_ID');</div>
   </div>
 
   <footer>
-    Built with ❤️ using <a href="https://github.com/play-dl/play-dl" target="_blank">play-dl</a> + Express &nbsp;|&nbsp;
-    Running on <code>localhost:3000</code>
+    Built with ❤️ using <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">yt-dlp</a> + Express &nbsp;|&nbsp;
+    <a href="https://github.com/xusmanbhai/music-stream-api" target="_blank">GitHub</a> &nbsp;|&nbsp;
+    Deployed on <a href="https://railway.app" target="_blank">Railway</a>
   </footer>
 </div>
 
