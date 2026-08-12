@@ -1,10 +1,53 @@
 const express = require("express");
 const cors = require("cors");
 const play = require("play-dl");
-const ytDlp = require("yt-dlp-exec");
 const https = require("https");
 const http = require("http");
 const path = require("path");
+const { execFile } = require("child_process");
+const { promisify } = require("util");
+const execFileAsync = promisify(execFile);
+
+// ─── yt-dlp binary resolver ───────────────────────────────────────────────────
+// On Railway/Linux: use system yt-dlp installed via nixpacks (reliable).
+// On local Windows dev: fall back to yt-dlp-exec's bundled binary.
+let _ytDlpBin = null;
+async function getYtDlpBin() {
+  if (_ytDlpBin) return _ytDlpBin;
+  // 1. Try system binary (Railway via nixpacks)
+  try {
+    await execFileAsync("yt-dlp", ["--version"]);
+    _ytDlpBin = "yt-dlp";
+    console.log("[yt-dlp] Using system binary");
+    return _ytDlpBin;
+  } catch (_) {}
+  // 2. Fall back to yt-dlp-exec bundled binary (local dev)
+  try {
+    const ytDlpExec = require("yt-dlp-exec");
+    _ytDlpBin = ytDlpExec.path || require.resolve("yt-dlp-exec/bin/yt-dlp");
+    console.log("[yt-dlp] Using yt-dlp-exec bundled binary:", _ytDlpBin);
+    return _ytDlpBin;
+  } catch (_) {}
+  throw new Error("yt-dlp binary not found. Install yt-dlp or yt-dlp-exec.");
+}
+
+// Unified yt-dlp caller — options map matches yt-dlp-exec API
+async function runYtDlp(url, options = {}) {
+  const bin = await getYtDlpBin();
+  const args = [url];
+  if (options.getUrl)                  args.push("--get-url");
+  if (options.noWarnings)              args.push("--no-warnings");
+  if (options.noCallHome)              args.push("--no-call-home");
+  if (options.preferFreeFormats)       args.push("--prefer-free-formats");
+  if (options.youtubeSkipDashManifest) args.push("--youtube-skip-dash-manifest");
+  if (options.format)                  args.push("-f", options.format);
+  if (options.dumpSingleJson)          args.push("--dump-single-json");
+
+  const { stdout } = await execFileAsync(bin, args, { maxBuffer: 20 * 1024 * 1024 });
+  if (options.dumpSingleJson) return JSON.parse(stdout);
+  return stdout.trim();
+}
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -140,7 +183,7 @@ app.get("/play", async (req, res) => {
 
       // --get-url is much faster than --dump-single-json:
       // it only extracts and prints the stream URL, no full metadata fetch.
-      const rawUrl = await ytDlp(url, {
+      const rawUrl = await runYtDlp(url, {
         getUrl: true,
         noWarnings: true,
         noCallHome: true,
