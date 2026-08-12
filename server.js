@@ -4,12 +4,28 @@ const play = require("play-dl");
 const https = require("https");
 const http = require("http");
 const path = require("path");
+const os = require("os");
+const fs = require("fs");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const execFileAsync = promisify(execFile);
 
+// ─── YouTube cookie file ───────────────────────────────────────────────────────
+// YouTube blocks yt-dlp on datacenter IPs (Railway, Render, etc.) unless you
+// pass cookies from a real logged-in browser session.
+// Set the YT_COOKIES env variable in Railway with the contents of a
+// cookies.txt file (Netscape format) exported from your browser.
+let COOKIE_FILE = null;
+if (process.env.YT_COOKIES) {
+  COOKIE_FILE = path.join(os.tmpdir(), "yt-cookies.txt");
+  fs.writeFileSync(COOKIE_FILE, process.env.YT_COOKIES, "utf8");
+  console.log("[yt-dlp] Cookie file ready:", COOKIE_FILE);
+} else {
+  console.warn("[yt-dlp] WARNING: YT_COOKIES env var not set. YouTube may block requests on cloud IPs.");
+}
+
 // ─── yt-dlp binary resolver ───────────────────────────────────────────────────
-// On Railway/Linux: use system yt-dlp installed via nixpacks (reliable).
+// On Railway/Linux: use system yt-dlp installed via nixpacks.
 // On local Windows dev: fall back to yt-dlp-exec's bundled binary.
 let _ytDlpBin = null;
 async function getYtDlpBin() {
@@ -31,23 +47,25 @@ async function getYtDlpBin() {
   throw new Error("yt-dlp binary not found. Install yt-dlp or yt-dlp-exec.");
 }
 
-// Unified yt-dlp caller — options map matches yt-dlp-exec API
+// Unified yt-dlp caller
 async function runYtDlp(url, options = {}) {
   const bin = await getYtDlpBin();
   const args = [url];
-  if (options.getUrl)                  args.push("--get-url");
-  if (options.noWarnings)              args.push("--no-warnings");
-  if (options.noCallHome)              args.push("--no-call-home");
-  if (options.preferFreeFormats)       args.push("--prefer-free-formats");
-  if (options.youtubeSkipDashManifest) args.push("--youtube-skip-dash-manifest");
-  if (options.format)                  args.push("-f", options.format);
-  if (options.dumpSingleJson)          args.push("--dump-single-json");
+  if (options.getUrl)          args.push("--get-url");
+  if (options.noWarnings)      args.push("--no-warnings");
+  if (options.format)          args.push("-f", options.format);
+  if (options.dumpSingleJson)  args.push("--dump-single-json");
+
+  // Use android player client — bypasses many bot-detection checks
+  args.push("--extractor-args", "youtube:player_client=android,web");
+
+  // Pass cookies if available (required on Railway/cloud datacenter IPs)
+  if (COOKIE_FILE) args.push("--cookies", COOKIE_FILE);
 
   const { stdout } = await execFileAsync(bin, args, { maxBuffer: 20 * 1024 * 1024 });
   if (options.dumpSingleJson) return JSON.parse(stdout);
   return stdout.trim();
 }
-
 
 const app = express();
 const PORT = process.env.PORT || 3000;
